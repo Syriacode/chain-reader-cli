@@ -10,7 +10,9 @@ Language: go
 - Always run the tests after changing code, and show me the output:
 
 ```bash
-go run .
+# Both need Anvil running on 127.0.0.1:8545, or pass --rpc <url>
+go run . block
+go run . balance 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 go test ./...
 go vet ./...
 gofmt -l .
