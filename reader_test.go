@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient/simulated"
 )
 
 // fakeReader is a hand-written ChainReader that returns fixed data, so tests
@@ -101,5 +102,34 @@ func TestBalanceRejectsBadAddressWithoutCallingNode(t *testing.T) {
 				t.Errorf("Balance(%q) called the node with %s", tc.address, f.balanceAddress)
 			}
 		})
+	}
+}
+
+func TestBalanceAgainstSimulatedChain(t *testing.T) {
+	addr := common.HexToAddress("0x000000000000000000000000000000000000bEEF")
+	funded := new(big.Int).Mul(big.NewInt(3), weiPerETH) // a new value; weiPerETH is not modified
+
+	// A real go-ethereum chain in memory, with addr funded in the genesis block.
+	backend := simulated.NewBackend(types.GenesisAlloc{addr: {Balance: funded}})
+	defer backend.Close()
+	backend.Commit() // mine block 1
+
+	client := backend.Client()
+	ctx := context.Background()
+
+	got, err := Balance(ctx, client, addr.Hex())
+	if err != nil {
+		t.Fatalf("Balance() error = %v", err)
+	}
+	if got.Cmp(funded) != 0 {
+		t.Errorf("Balance() = %s ETH, want %s ETH", FormatETH(got), FormatETH(funded))
+	}
+
+	block, err := LatestBlock(ctx, client)
+	if err != nil {
+		t.Fatalf("LatestBlock() error = %v", err)
+	}
+	if block.Number.Cmp(big.NewInt(1)) != 0 {
+		t.Errorf("LatestBlock().Number = %s, want 1", block.Number)
 	}
 }
